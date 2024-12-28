@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>フランカー課題（難易度アップ）</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: sans-serif;
+      background: linear-gradient(135deg, #e0eafc, #cfdef3);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+    }
+    h1 {
+      margin-top: 20px;
+      color: #333;
+    }
+    #instruction {
+      margin-top: 10px;
+      color: #333;
+      text-align: center;
+      line-height: 1.4;
+    }
+    #task-area {
+      width: 600px;
+      height: 200px;
+      margin-top: 30px;
+      border: 2px solid #333;
+      border-radius: 10px;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      color: #333;
+    }
+    #info {
+      margin-top: 20px;
+      min-height: 2em;
+      color: #333;
+      text-align: center;
+    }
+    button {
+      padding: 10px 20px;
+      margin-top: 20px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+      background: #3498db;
+      color: #fff;
+      transition: background 0.3s;
+    }
+    button:hover {
+      background: #2980b9;
+    }
+  </style>
+</head>
+<body>
+  <h1>フランカー課題（難易度アップ）</h1>
+  <div id="instruction">
+    <p>中央の矢印が←なら←キー、→なら→キーを押します</p>
+    <p>両端の矢印には惑わされないように！</p>
+    <p>※ <strong>750ms</strong>以内に反応できないとミスになります</p>
+  </div>
+
+  <div id="task-area">開始ボタンを押してください</div>
+  <div id="info"></div>
+  <button id="start-btn">開始</button>
+
+  <script>
+    /***********************************************
+     * 1. 定数・変数の定義
+     ***********************************************/
+    const taskArea = document.getElementById("task-area");
+    const infoArea = document.getElementById("info");
+    const startBtn = document.getElementById("start-btn");
+
+    // 試行数を20に増やす
+    const TRIAL_COUNT = 20;
+
+    // CongruentとIncongruentの割合を設定 (例：30%/70%)
+    const CONGRUENT_COUNT = Math.floor(TRIAL_COUNT * 0.3); 
+    const INCONGRUENT_COUNT = TRIAL_COUNT - CONGRUENT_COUNT;
+
+    // 反応時間制限 (ms)
+    const TIME_LIMIT = 750;
+
+    // 刺激間インターバル (ISI) の範囲 (ms)
+    const ISI_MIN = 500;
+    const ISI_MAX = 1000;
+
+    // ランダムに並べる試行リスト (congruent / incongruent)
+    let trials = [];
+
+    // 現在の試行インデックス
+    let currentTrialIndex = 0;
+    // 試行中フラグ
+    let inProgress = false;
+    // 反応開始時刻
+    let startTime = 0;
+    // タイムアウト制御用
+    let responseTimer = null;
+
+    // 結果格納用: { type: 'congruent'|'incongruent', center: 'left'|'right', correct: boolean, rt: number|null, timeout: boolean }
+    let results = [];
+
+    /***********************************************
+     * 2. イベント：開始ボタン
+     ***********************************************/
+    startBtn.addEventListener('click', startExperiment);
+
+    function startExperiment() {
+      startBtn.disabled = true;
+      infoArea.textContent = '';
+
+      createTrials();
+      currentTrialIndex = 0;
+      results = [];
+
+      runNextTrial();
+    }
+
+    /***********************************************
+     * 3. 試行リスト作成
+     ***********************************************/
+    function createTrials() {
+      // Congruentを30%分, Incongruentを70%分
+      const labels = [
+        ...Array(CONGRUENT_COUNT).fill('congruent'),
+        ...Array(INCONGRUENT_COUNT).fill('incongruent')
+      ];
+      shuffle(labels);
+
+      // center=left / right をランダム化
+      // typeが'congruent'か'incongruent'か
+      // { type, center }
+      trials = labels.map(type => {
+        const center = Math.random() < 0.5 ? 'left' : 'right';
+        return { type, center };
+      });
+    }
+
+    // 配列シャッフル
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+    }
+
+    /***********************************************
+     * 4. 試行開始
+     ***********************************************/
+    function runNextTrial() {
+      if (currentTrialIndex >= TRIAL_COUNT) {
+        endExperiment();
+        return;
+      }
+
+      inProgress = true;
+      taskArea.textContent = '';
+
+      const trial = trials[currentTrialIndex];
+      // 矢印列の生成
+      const arrows = generateFlankerString(trial.type, trial.center);
+      taskArea.textContent = arrows;
+
+      startTime = performance.now();
+
+      // タイムアウト（TIME_LIMIT ms）を超えたらミス扱い
+      responseTimer = setTimeout(() => {
+        if (inProgress) {
+          inProgress = false;
+          recordResponse(null, true); // 押さずにタイムアウト
+        }
+      }, TIME_LIMIT);
+    }
+
+    // 矢印列生成
+    // 例: center='left', type='incongruent' => "<<><<"
+    function generateFlankerString(type, center) {
+      const centerArrow = (center === 'left') ? '←' : '→';
+      let flankerArrow;
+      if (type === 'congruent') {
+        flankerArrow = centerArrow;
+      } else {
+        flankerArrow = (centerArrow === '←') ? '→' : '←';
+      }
+      // 左右2つずつ + 中央1つ
+      return flankerArrow + flankerArrow + centerArrow + flankerArrow + flankerArrow;
+    }
+
+    /***********************************************
+     * 5. キー入力 (←=37, →=39)
+     ***********************************************/
+    window.addEventListener('keydown', e => {
+      if (!inProgress) return;
+      if (e.keyCode !== 37 && e.keyCode !== 39) return;
+
+      clearTimeout(responseTimer);
+      inProgress = false;
+
+      recordResponse(e.keyCode, false);
+    });
+
+    /***********************************************
+     * 6. 結果記録 & 次の試行へ
+     ***********************************************/
+    function recordResponse(keyCode, isTimeout) {
+      const endTime = performance.now();
+      const rt = isTimeout ? null : (endTime - startTime);
+
+      const trial = trials[currentTrialIndex];
+
+      let isCorrect = false;
+      // ユーザが押さなかった場合 (isTimeout=true) => Go/NoGoとは違い、ここではミス確定
+      // ユーザが押した場合、中央矢印と照合
+      if (!isTimeout) {
+        if (trial.center === 'left' && keyCode === 37) {
+          isCorrect = true;
+        } else if (trial.center === 'right' && keyCode === 39) {
+          isCorrect = true;
+        }
+      }
+
+      results.push({
+        type: trial.type,
+        center: trial.center,
+        correct: isCorrect,
+        rt: rt,
+        timeout: isTimeout
+      });
+
+      taskArea.textContent = '';
+      currentTrialIndex++;
+
+      // 次の試行までランダムインターバル
+      const isi = ISI_MIN + Math.floor(Math.random() * (ISI_MAX - ISI_MIN + 1));
+      setTimeout(() => {
+        runNextTrial();
+      }, isi);
+    }
+
+    /***********************************************
+     * 7. 終了処理
+     ***********************************************/
+    function endExperiment() {
+      taskArea.textContent = 'お疲れ様でした！';
+
+      // 集計
+      const n = results.length;
+      const correctCount = results.filter(r => r.correct).length;
+      const accuracy = (correctCount / n) * 100;
+
+      // 正答かつtimeout=false の試行のみで平均RTを計算
+      const correctTrials = results.filter(r => r.correct && !r.timeout);
+      let meanRT = 0;
+      if (correctTrials.length > 0) {
+        meanRT = correctTrials.reduce((sum, c) => sum + (c.rt || 0), 0) / correctTrials.length;
+      }
+
+      // Congruent / Incongruent 別に正答率やRTを見たい場合は更に分割計算も可能
+      // 簡単のためここでは全体のみ表示
+      infoArea.innerHTML = `
+        <p>試行数：${n} （Congruent: ${CONGRUENT_COUNT}, Incongruent: ${INCONGRUENT_COUNT}）</p>
+        <p>正答率：${accuracy.toFixed(1)} %</p>
+        <p>平均反応時間（正答のみ）：${meanRT.toFixed(2)} ms</p>
+      `;
+
+      startBtn.disabled = false;
+      startBtn.textContent = 'もう一度';
+    }
+  </script>
+</body>
+</html>
