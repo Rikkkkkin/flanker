@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>フランカー課題（難易度アップ）</title>
+  <title>フランカー課題</title>
   <style>
     * {
       box-sizing: border-box;
@@ -65,14 +65,16 @@
   </style>
 </head>
 <body>
-  <h1>フランカー課題（難易度アップ）</h1>
+  <h1>まわりの情報に惑わされるな！ゲーム</h1>
   <div id="instruction">
-    <p>中央の矢印が←なら←キー、→なら→キーを押します</p>
+    <p><strong>中央の矢印が←なら←キー、→なら→キー</strong>を押します</p>
     <p>両端の矢印には惑わされないように！</p>
-    <p>※ <strong>750ms</strong>以内に反応できないとミスになります</p>
+    <p>750ms以内に反応できないとミスになります。</p>
+    <p>合計15問です。<strong>なるべく早く、正確に</strong>回答してください。</p>
+    <p>集中力・注意力を測定します。</p>
   </div>
 
-  <div id="task-area">開始ボタンを押してください</div>
+  <div id="task-area">開始ボタンでスタート！</div>
   <div id="info"></div>
   <button id="start-btn">開始</button>
 
@@ -85,7 +87,7 @@
     const startBtn = document.getElementById("start-btn");
 
     // 試行数を20に増やす
-    const TRIAL_COUNT = 20;
+    const TRIAL_COUNT = 15;
 
     // CongruentとIncongruentの割合を設定 (例：30%/70%)
     const CONGRUENT_COUNT = Math.floor(TRIAL_COUNT * 0.3); 
